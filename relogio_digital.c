@@ -20,8 +20,8 @@
 #define BUTTON_B 6    // Botão para alternar entre horas e minutos
 #define BUTTON_SELECT 22 // Botão para entrar/sair do modo de configuração
 
-// Pino do eixo X do joystick (conectado ao ADC)
-#define JOYSTICK_X_PIN 26
+// Pino do eixo Y do joystick (conectado ao ADC)
+#define JOYSTICK_Y_PIN 26
 
 // Pino do Led vermelho
 #define LED_PIN_RED 13
@@ -29,7 +29,7 @@
 // Pino do Buzzer
 #define BUZZER_PIN 21
 
-datetime_t current_time = {2025, 0, 1, 1, 12, 0, 0}; // Horário inicial (ano padrão 2025)
+datetime_t current_time = {2025, 1, 1, 1, 12, 0, 0}; // Horário inicial (ano padrão 2025)
 
 // Variável global para armazenar o alarme
 typedef struct {
@@ -69,11 +69,8 @@ volatile bool buzzer_state = false;
 volatile absolute_time_t buzzer_toggle_time = 0;
 const uint32_t buzzer_toggle_interval_ms = 125; // Intervalo para 4 apitos por segundo (1000 ms / 8)
 
-void init_adc();
-void init_buttons();
 void gpio_callback(uint gpio, uint32_t events);
 bool buzzer_timer_callback(struct repeating_timer *t);
-uint16_t read_joystick_x();
 void increment_field();
 void decrement_field();
 void toggle_field();
@@ -83,39 +80,17 @@ void disable_alarm();
 void trigger_alarm();
 void update_display();
 void increment_time();
+void setup();
 
 int main() {
     stdio_init_all();
 
-    // Inicializa o LED vermelho
-    gpio_init(LED_PIN_RED);
-    gpio_set_dir(LED_PIN_RED, GPIO_OUT);
+    //Função que configura os pinos, I2C, ADC e PWM para o buzzer
+    setup();
 
-    // Inicializa o Buzzer
-    gpio_init(BUZZER_PIN);
-    gpio_set_dir(BUZZER_PIN, GPIO_OUT);
-
-    // Inicializa o I2C para o display OLED
-    i2c_init(I2C_PORT, 400 * 1000);
-    gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
-    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
-    gpio_pull_up(I2C_SDA);
-    gpio_pull_up(I2C_SCL);
-
-    // Inicializa o display OLED
-    ssd1306_init(&ssd, 128, 64, false, OLED_ADDRESS, I2C_PORT);
-    ssd1306_config(&ssd);
-    ssd1306_send_data(&ssd);
-    ssd1306_fill(&ssd, false);
-    ssd1306_send_data(&ssd);
-
-    // Inicializa os botões com interrupções
-    init_buttons();
+    //Configuração das interrupções para os botões
     gpio_set_irq_callback(gpio_callback);
     irq_set_enabled(IO_IRQ_BANK0, true);
-
-    // Inicializa o ADC para o joystick
-    init_adc();
     
 
     // Configuração do timer para o buzzer
@@ -143,12 +118,12 @@ int main() {
                 toggle_field();
             }
 
-            // Leitura do eixo X do joystick para ajustar o campo selecionado
-            uint16_t joystick_x_value = read_joystick_x();
-            if (joystick_x_value < 1000) { // Joystick para a esquerda
+            // Leitura do eixo Y do joystick para ajustar o campo selecionado
+            uint16_t joystick_y_value = adc_read();
+            if (joystick_y_value < 1000) { // Joystick para a esquerda
                 decrement_field();
                 sleep_ms(200); // Debounce
-            } else if (joystick_x_value > 3000) { // Joystick para a direita
+            } else if (joystick_y_value > 3000) { // Joystick para a direita
                 increment_field();
                 sleep_ms(200); // Debounce
             }
@@ -171,16 +146,11 @@ int main() {
         
     }
 }
-
-// Função para inicializar o ADC para o joystick
-void init_adc() {
+void setup(){
     adc_init();
-    adc_gpio_init(JOYSTICK_X_PIN); // Configura o pino do eixo X como entrada analógica
+    adc_gpio_init(JOYSTICK_Y_PIN); // Configura o pino do eixo Y como entrada analógica
     adc_select_input(0); // Seleciona o canal ADC 0 (GPIO 26)
-}
 
-// Função para inicializar os botões com interrupções
-void init_buttons() {
     gpio_init(BUTTON_A);
     gpio_set_dir(BUTTON_A, GPIO_IN);
     gpio_pull_up(BUTTON_A);
@@ -195,11 +165,28 @@ void init_buttons() {
     gpio_set_dir(BUTTON_SELECT, GPIO_IN);
     gpio_pull_up(BUTTON_SELECT);
     gpio_set_irq_enabled(BUTTON_SELECT, GPIO_IRQ_EDGE_FALL, true);
-}
 
-// Função para ler o valor do eixo X do joystick
-uint16_t read_joystick_x() {
-    return adc_read(); // Lê o valor do ADC (0-4095 para 12 bits)
+    // Inicializa o LED vermelho
+    gpio_init(LED_PIN_RED);
+    gpio_set_dir(LED_PIN_RED, GPIO_OUT);
+
+    // Inicializa o Buzzer
+    gpio_init(BUZZER_PIN);
+    gpio_set_dir(BUZZER_PIN, GPIO_OUT);
+
+    // Inicializa o I2C para o display OLED
+    i2c_init(I2C_PORT, 400 * 1000);
+    gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
+    gpio_pull_up(I2C_SDA);
+    gpio_pull_up(I2C_SCL);
+
+    // Inicializa o display OLED
+    ssd1306_init(&ssd, 128, 64, false, OLED_ADDRESS, I2C_PORT);
+    ssd1306_config(&ssd);
+    ssd1306_send_data(&ssd);
+    ssd1306_fill(&ssd, false);
+    ssd1306_send_data(&ssd);
 }
 
 // Função de callback para interrupções dos botões
