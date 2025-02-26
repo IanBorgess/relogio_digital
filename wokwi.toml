@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+firmware = 'build\relogio_digital.uf2'
+elf = 'build\relogio_digital.elf'
