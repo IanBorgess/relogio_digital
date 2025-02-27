@@ -120,10 +120,10 @@ int main() {
 
             // Leitura do eixo Y do joystick para ajustar o campo selecionado
             uint16_t joystick_y_value = adc_read();
-            if (joystick_y_value < 1000) { // Joystick para a esquerda
+            if (joystick_y_value < 1000) { // Joystick para baixo
                 decrement_field();
                 sleep_ms(200); // Debounce
-            } else if (joystick_y_value > 3000) { // Joystick para a direita
+            } else if (joystick_y_value > 3000) { // Joystick para cima
                 increment_field();
                 sleep_ms(200); // Debounce
             }
